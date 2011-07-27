@@ -16,6 +16,6 @@ The best way to install this is to link the directories from where you donwloade
     ln -s /location-you-downloaded-repo/DallasTemperature .
     ln -s /location-you-downloaded-repo/OneWire .
 
-Note that using a Macintosh alias (command-option drag) is not the same as using the 'ln' command. The Mac alias isn't followed with the current Arduino (v22) app.
+Note that using a Macintosh alias (command-option drag) is not the same as using the `ln` command. The Mac alias isn't followed with the current Arduino (v22) app.
 
-Alternatively you can just copy the 'DallasTemperature' and 'OneWire' folders into your Arduino library folder. On Macintosh this is typically the '~/Documents/Arduino/libraries/' folder.
+Alternatively you can just copy the `DallasTemperature` and `OneWire` folders into your Arduino library folder. On Macintosh this is typically the `~/Documents/Arduino/libraries/` folder.
