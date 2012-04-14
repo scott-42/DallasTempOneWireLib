@@ -3,11 +3,19 @@
 // License as published by the Free Software Foundation; either
 // version 2.1 of the License, or (at your option) any later version.
 
+// Version 3.7.2 modified on Dec 6, 2011 to support Arduino 1.0
+// See Includes...
+// Modified by Jordan Hochenbaum
+
 #include "DallasTemperature.h"
 
+#if ARDUINO >= 100
+    #include "Arduino.h"   
+#else
 extern "C" {
-  #include "WConstants.h"
+    #include "WConstants.h"
 }
+#endif
 
 DallasTemperature::DallasTemperature(OneWire* _oneWire)
   #if REQUIRESALARMS
@@ -19,9 +27,10 @@ DallasTemperature::DallasTemperature(OneWire* _oneWire)
   parasite = false;
   bitResolution = 9;
   waitForConversion = true;
+  checkForConversion = true;
 }
 
-// initialize the bus
+// initialise the bus
 void DallasTemperature::begin(void)
 {
   DeviceAddress deviceAddress;
@@ -253,16 +262,16 @@ uint8_t DallasTemperature::getResolution(uint8_t* deviceAddress)
     {
       case TEMP_12_BIT:
         return 12;
-        break; // not needed ?
+        
       case TEMP_11_BIT:
         return 11;
-        break;
+        
       case TEMP_10_BIT:
         return 10;
-        break;
+        
       case TEMP_9_BIT:
         return 9;
-        break;
+        
 	}
   }
   return 0;
@@ -273,7 +282,7 @@ uint8_t DallasTemperature::getResolution(uint8_t* deviceAddress)
 // TRUE : function requestTemperature() etc returns when conversion is ready
 // FALSE: function requestTemperature() etc returns immediately (USE WITH CARE!!)
 // 		  (1) programmer has to check if the needed delay has passed 
-//        (2) but the application can do meaningfull things in that time
+//        (2) but the application can do meaningful things in that time
 void DallasTemperature::setWaitForConversion(bool flag)
 {
 	waitForConversion = flag;
@@ -286,6 +295,29 @@ bool DallasTemperature::getWaitForConversion()
 }
 
 
+// sets the value of the checkForConversion flag
+// TRUE : function requestTemperature() etc will 'listen' to an IC to determine whether a conversion is complete
+// FALSE: function requestTemperature() etc will wait a set time (worst case scenario) for a conversion to complete
+void DallasTemperature::setCheckForConversion(bool flag)
+{
+	checkForConversion = flag;
+}
+
+// gets the value of the waitForConversion flag
+bool DallasTemperature::getCheckForConversion()
+{
+	return checkForConversion;
+}
+
+bool DallasTemperature::isConversionAvailable(uint8_t* deviceAddress)
+{
+	// Check if the clock has been raised indicating the conversion is complete
+  	ScratchPad scratchPad;
+  	readScratchPad(deviceAddress, scratchPad);
+	return scratchPad[0];
+}	
+
+
 // sends command for all devices on the bus to perform a temperature conversion
 void DallasTemperature::requestTemperatures()
 {
@@ -294,24 +326,9 @@ void DallasTemperature::requestTemperatures()
   _wire->write(STARTCONVO, parasite);
 
   // ASYNC mode?
-  if (false == waitForConversion) return; 
-  
-  switch (bitResolution)
-  {
-    case 9:
-      delay(94);
-      break;
-    case 10:
-      delay(188);
-      break;
-    case 11:
-      delay(375);
-      break;
-    case 12:
-    default:
-      delay(750);
-      break;
-  }
+  if (!waitForConversion) return; 
+  blockTillConversionComplete(&bitResolution, 0);
+
   return;
 }
 
@@ -320,40 +337,53 @@ void DallasTemperature::requestTemperatures()
 // returns TRUE  otherwise
 bool DallasTemperature::requestTemperaturesByAddress(uint8_t* deviceAddress)
 {
-  // check device
-  ScratchPad scratchPad;
-  if (false == isConnected(deviceAddress, scratchPad)) return false;
-  
+
   _wire->reset();
   _wire->select(deviceAddress);
   _wire->write(STARTCONVO, parasite);
   
-  // ASYNC mode?
-  if (false == waitForConversion) return true;  
+    // check device
+  ScratchPad scratchPad;
+  if (!isConnected(deviceAddress, scratchPad)) return false;
   
-  if (deviceAddress[0] == DS18S20MODEL)
-  {
-    delay(750);  // max value found in datasheet
-	return true;
-  } 
-  // other models
-  switch(scratchPad[CONFIGURATION])
-  {
-    case TEMP_9_BIT:
-      delay(94);
-      break;
-    case TEMP_10_BIT:
-      delay(188);
-      break;
-    case TEMP_11_BIT:
-      delay(375);
-      break;
-    case TEMP_12_BIT:
-    default:
-      delay(750);
-      break;
-  }
+  
+  // ASYNC mode?
+  if (!waitForConversion) return true;   
+  uint8_t bitResolution = getResolution(deviceAddress);
+  blockTillConversionComplete(&bitResolution, deviceAddress);
+  
   return true;
+}
+
+
+void DallasTemperature::blockTillConversionComplete(uint8_t* bitResolution, uint8_t* deviceAddress)
+{
+	if(deviceAddress != 0 && checkForConversion && !parasite)
+	{
+	  	// Continue to check if the IC has responded with a temperature
+	  	// NB: Could cause issues with multiple devices (one device may respond faster)
+	  	unsigned long start = millis();
+		while(!isConversionAvailable(0) && ((millis() - start) < 750));	
+	}
+	
+  	// Wait a fix number of cycles till conversion is complete (based on IC datasheet)
+	  switch (*bitResolution)
+	  {
+	    case 9:
+	      delay(94);
+	      break;
+	    case 10:
+	      delay(188);
+	      break;
+	    case 11:
+	      delay(375);
+	      break;
+	    case 12:
+	    default:
+	      delay(750);
+	      break;
+	  }
+
 }
 
 // sends command for one device to perform a temp conversion by index
@@ -407,10 +437,10 @@ float DallasTemperature::calculateTemperature(uint8_t* deviceAddress, uint8_t* s
       /*
 
       Resolutions greater than 9 bits can be calculated using the data from
-      the temperature, COUNT REMAIN and COUNT PER °C registers in the
-      scratchpad. Note that the COUNT PER °C register is hard-wired to 16
+      the temperature, COUNT REMAIN and COUNT PER ï¿½C registers in the
+      scratchpad. Note that the COUNT PER ï¿½C register is hard-wired to 16
       (10h). After reading the scratchpad, the TEMP_READ value is obtained
-      by truncating the 0.5°C bit (bit 0) from the temperature data. The
+      by truncating the 0.5ï¿½C bit (bit 0) from the temperature data. The
       extended resolution temperature can then be calculated using the
       following equation:
 

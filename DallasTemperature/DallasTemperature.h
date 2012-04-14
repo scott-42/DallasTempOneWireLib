@@ -1,7 +1,7 @@
 #ifndef DallasTemperature_h
 #define DallasTemperature_h
 
-#define DALLASTEMPLIBVERSION "3.7.0"
+#define DALLASTEMPLIBVERSION "3.7.2"
 
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -63,11 +63,14 @@ class DallasTemperature
 
   DallasTemperature(OneWire*);
 
-  // initalize bus
+  // initalise bus
   void begin(void);
 
   // returns the number of devices found on the bus
   uint8_t getDeviceCount(void);
+  
+  // Is a conversion complete on the wire?
+  bool isConversionComplete(void);
   
   // returns true if address is valid
   bool validAddress(uint8_t*);
@@ -107,6 +110,10 @@ class DallasTemperature
   void setWaitForConversion(bool);
   bool getWaitForConversion(void);
   
+  // sets/gets the checkForConversion flag
+  void setCheckForConversion(bool);
+  bool getCheckForConversion(void);
+  
   // sends command for all devices on the bus to perform a temperature conversion 
   void requestTemperatures(void);
    
@@ -130,6 +137,8 @@ class DallasTemperature
   
   // returns true if the bus requires parasite power
   bool isParasitePowerMode(void);
+  
+  bool isConversionAvailable(uint8_t*);
 
   #if REQUIRESALARMS
   
@@ -198,10 +207,13 @@ class DallasTemperature
 
   // used to determine the delay amount needed to allow for the
   // temperature conversion to take place
-  int bitResolution;
+  uint8_t bitResolution;
   
   // used to requestTemperature with or without delay
   bool waitForConversion;
+  
+  // used to requestTemperature to dynamically check if a conversion is complete
+  bool checkForConversion;
   
   // count of devices on the bus
   uint8_t devices;
@@ -211,6 +223,8 @@ class DallasTemperature
 
   // reads scratchpad and returns the temperature in degrees C
   float calculateTemperature(uint8_t*, uint8_t*);
+  
+  void	blockTillConversionComplete(uint8_t*,uint8_t*);
   
   #if REQUIRESALARMS
 

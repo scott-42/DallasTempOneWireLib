@@ -1,6 +1,12 @@
 
 This file contains the change history of the Dallas Temperature Control Library.
 
+VERSION 3.7.2 BETA
+===================
+DATE: 6 DEC  2011
+
+- Jordan Hochenbaum [jhochenbaum@gmail.com] updated library for compatibility with Arduino 1.0.
+
 VERSION 3.7.0 BETA
 ===================
 DATE: 11 JAN  2011
