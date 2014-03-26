@@ -6,7 +6,7 @@ If you are using a Dallas one-wire temperature sensor then this repo contains th
 Contents
 --------
 * [Dallas Temperature Library 3.72 Beta](http://www.milesburton.com/?title=Dallas_Temperature_Control_Library)
-* [OneWire 2.1](http://www.pjrc.com/teensy/td_libs_OneWire.html)
+* [OneWire 2.2](http://www.pjrc.com/teensy/td_libs_OneWire.html)
 
 Installation
 ------------
